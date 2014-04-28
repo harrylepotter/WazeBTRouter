@@ -24,7 +24,7 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 public class WazeBTRouter implements IXposedHookLoadPackage {
 	private AudioManager manager;
 	private Context context = null;
-	private List waitingObjs = new ArrayList<Object>();
+	private List<Object> waitingObjs = new ArrayList<Object>();
 	private final String TAG = "WAZE_INTERCEPTOR";
 
 	private BroadcastReceiver mediaStateReceiver = new BroadcastReceiver() {
@@ -37,7 +37,17 @@ public class WazeBTRouter implements IXposedHookLoadPackage {
 
 				if(status == AudioManager.SCO_AUDIO_STATE_CONNECTED){
 					Log.d(TAG, "bluetooth SCO device connected.");
-					resumeAudio();
+					try {
+						synchronized(this){
+							this.wait(2000);
+							resumeAudio();
+						}
+					
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					
 				}
 			}
 		}
@@ -64,7 +74,7 @@ public class WazeBTRouter implements IXposedHookLoadPackage {
 			protected Void doInBackground(Void... params) {
 
 				try {
-					Thread.sleep(5000);
+					Thread.sleep(500);
 					Log.d(TAG, "Re-routing audio to normal device");
 					if(manager != null && manager.getMode() == AudioManager.MODE_IN_CALL){
 
@@ -128,6 +138,7 @@ public class WazeBTRouter implements IXposedHookLoadPackage {
 				task.cancel(true);
 				getLeTask();
 				task.execute();
+				resumeAudio();
 			}
 		});
 
@@ -137,7 +148,6 @@ public class WazeBTRouter implements IXposedHookLoadPackage {
 			@Override
 			protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
 				if(manager != null && manager.getMode() != AudioManager.MODE_IN_CALL){
-
 					manager.setMode(AudioManager.MODE_IN_CALL);
 					manager.startBluetoothSco();
 					manager.setBluetoothScoOn(true);
